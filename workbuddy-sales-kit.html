@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WorkBuddy 销售演示脚本 & ROI 计算器</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --primary: #E8424A;
+  --primary-dark: #C7353C;
+  --bg: #0D1117;
+  --card: #161B22;
+  --border: #30363D;
+  --text: #E6EDF3;
+  --text-dim: #8B949E;
+  --green: #3FB950;
+  --orange: #F0883E;
+  --blue: #58A6FF;
+  --purple: #BC8CFF;
+}
+body { background: var(--bg); color: var(--text); font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; min-height: 100vh; }
+.container { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+
+/* Header */
+header { text-align: center; margin-bottom: 40px; }
+header .badge { display: inline-block; background: rgba(232,66,74,0.15); color: var(--primary); font-size: 12px; padding: 4px 12px; border-radius: 20px; margin-bottom: 12px; border: 1px solid rgba(232,66,74,0.3); }
+header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+header p { color: var(--text-dim); font-size: 14px; }
+
+/* Tabs */
+.tabs { display: flex; gap: 8px; margin-bottom: 28px; justify-content: center; }
+.tab-btn { background: var(--card); border: 1px solid var(--border); color: var(--text-dim); padding: 10px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+.tab-btn:hover { border-color: var(--primary); color: var(--text); }
+.tab-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Cards */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+.card-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.card-title .icon { font-size: 20px; }
+
+/* Timeline */
+.timeline { position: relative; padding-left: 32px; }
+.timeline::before { content: ''; position: absolute; left: 11px; top: 8px; bottom: 8px; width: 2px; background: var(--border); }
+.step { position: relative; margin-bottom: 24px; }
+.step::before { content: attr(data-num); position: absolute; left: -32px; top: 2px; width: 24px; height: 24px; background: var(--card); border: 2px solid var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--primary); }
+.step-time { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+.step-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.step-desc { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+.step-action { font-size: 12px; background: rgba(232,66,74,0.1); color: var(--primary); padding: 3px 10px; border-radius: 4px; display: inline-block; margin-top: 6px; border: 1px solid rgba(232,66,74,0.2); }
+
+/* Script Steps */
+.script-step { border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 14px; cursor: pointer; transition: all 0.2s; }
+.script-step:hover { border-color: var(--primary); transform: translateY(-1px); }
+.script-step.open { border-color: var(--primary); background: rgba(232,66,74,0.05); }
+.script-step-header { display: flex; align-items: center; justify-content: space-between; }
+.script-step-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.script-step-badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+.badge-question { background: rgba(88,166,255,0.15); color: var(--blue); }
+.badge-demo { background: rgba(63,185,80,0.15); color: var(--green); }
+.badge-close { background: rgba(240,136,62,0.15); color: var(--orange); }
+.script-step-body { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.script-step.open .script-step-body { display: block; }
+.script-line { font-size: 13px; line-height: 1.8; color: var(--text-dim); }
+.script-line strong { color: var(--text); }
+.script-line.me { border-left: 3px solid var(--primary); padding-left: 12px; margin-bottom: 8px; }
+.script-line.customer { border-left: 3px solid var(--blue); padding-left: 12px; margin-bottom: 8px; color: var(--blue); }
+.script-line.note { font-size: 12px; color: var(--text-dim); font-style: italic; border-left: 3px solid var(--text-dim); }
+
+/* ROI Calculator */
+.calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 640px) { .calc-grid { grid-template-columns: 1fr; } }
+.calc-input-group { margin-bottom: 16px; }
+.calc-label { font-size: 13px; color: var(--text-dim); margin-bottom: 6px; display: block; }
+.calc-input-row { display: flex; align-items: center; gap: 8px; }
+.calc-input { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 16px; width: 100%; outline: none; transition: border 0.2s; font-family: inherit; }
+.calc-input:focus { border-color: var(--primary); }
+.calc-input-prefix { color: var(--text-dim); font-size: 14px; }
+.calc-input-suffix { color: var(--text-dim); font-size: 14px; }
+.calc-slider { -webkit-appearance: none; width: 100%; height: 4px; background: var(--border); border-radius: 2px; outline: none; }
+.calc-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: var(--primary); border-radius: 50%; cursor: pointer; }
+.calc-value { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+
+/* Results */
+.result-panel { background: linear-gradient(135deg, rgba(232,66,74,0.1), rgba(232,66,74,0.05)); border: 1px solid rgba(232,66,74,0.3); border-radius: 16px; padding: 24px; text-align: center; }
+.result-big { font-size: 48px; font-weight: 800; color: var(--primary); line-height: 1; }
+.result-unit { font-size: 18px; color: var(--text-dim); }
+.result-label { font-size: 13px; color: var(--text-dim); margin-top: 6px; }
+.result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
+.result-mini { background: var(--bg); border-radius: 10px; padding: 14px; text-align: center; }
+.result-mini-val { font-size: 22px; font-weight: 700; color: var(--text); }
+.result-mini-label { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+.roi-bar { background: var(--bg); border-radius: 8px; padding: 16px; margin-top: 16px; }
+.roi-bar-label { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; display: flex; justify-content: space-between; }
+.roi-bar-track { background: var(--border); border-radius: 6px; height: 12px; overflow: hidden; }
+.roi-bar-fill { height: 100%; background: linear-gradient(90deg, var(--green), var(--primary)); border-radius: 6px; transition: width 0.6s ease; }
+
+/* Script Tips */
+.tip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 640px) { .tip-grid { grid-template-columns: 1fr; } }
+.tip-item { background: var(--bg); border-radius: 10px; padding: 14px; display: flex; gap: 12px; align-items: flex-start; }
+.tip-icon { font-size: 20px; flex-shrink: 0; }
+.tip-text { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+.tip-text strong { color: var(--text); display: block; margin-bottom: 2px; }
+
+/* Comparison */
+.comp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.comp-table th { background: var(--bg); color: var(--text-dim); padding: 10px 12px; text-align: left; font-weight: 500; border-bottom: 1px solid var(--border); }
+.comp-table td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.6; }
+.comp-table tr:last-child td { border-bottom: none; }
+.comp-win { color: var(--green); }
+.comp-lose { color: var(--text-dim); }
+.comp-you { font-weight: 600; color: var(--text); }
+
+/* Scene cards */
+.scene-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 640px) { .scene-grid { grid-template-columns: 1fr; } }
+.scene-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; cursor: pointer; transition: all 0.2s; }
+.scene-card:hover { border-color: var(--primary); }
+.scene-card.active { border-color: var(--primary); background: rgba(232,66,74,0.05); }
+.scene-icon { font-size: 24px; margin-bottom: 8px; }
+.scene-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.scene-pain { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+
+/* CTA */
+.cta-section { background: linear-gradient(135deg, var(--card), rgba(232,66,74,0.1)); border: 1px solid var(--border); border-radius: 16px; padding: 28px; text-align: center; }
+.cta-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.cta-desc { font-size: 13px; color: var(--text-dim); margin-bottom: 20px; }
+.cta-btn { display: inline-block; background: var(--primary); color: #fff; padding: 12px 32px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; border: none; text-decoration: none; }
+.cta-btn:hover { background: var(--primary-dark); }
+
+/* Footer */
+footer { text-align: center; padding: 24px; color: var(--text-dim); font-size: 11px; }
+
+/* Fold arrow */
+.fold-arrow { font-size: 12px; color: var(--text-dim); transition: transform 0.2s; }
+.script-step.open .fold-arrow { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Header -->
+<header>
+  <div class="badge">📋 代理商专用 · 可打印</div>
+  <h1>WorkBuddy 销售演示脚本 &amp; ROI 计算器</h1>
+  <p>让客户在 5 分钟内产生购买冲动</p>
+</header>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="showTab('script')">🎯 演示脚本</button>
+  <button class="tab-btn" onclick="showTab('roi')">💰 ROI 计算器</button>
+  <button class="tab-btn" onclick="showTab('tips')">📌 实战技巧</button>
+</div>
+
+<!-- ==================== TAB 1: 演示脚本 ==================== -->
+<div id="tab-script" class="tab-content active">
+
+  <!-- 场景选择 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">🎯</span>第一步：选对演示场景</div>
+    <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px;">开场后，先问客户痛点，选最贴近的那个场景来演示（点击选择）：</p>
+    <div class="scene-grid">
+      <div class="scene-card" onclick="selectScene(this,'media')">
+        <div class="scene-icon">✍️</div>
+        <div class="scene-name">自媒体运营</div>
+        <div class="scene-pain">每天写稿、排版、追热点，占用大量时间</div>
+      </div>
+      <div class="scene-card" onclick="selectScene(this,'ecom')">
+        <div class="scene-icon">🛒</div>
+        <div class="scene-name">电商客服</div>
+        <div class="scene-pain">重复问题回复量大，产品描述要写很多版本</div>
+      </div>
+      <div class="scene-card" onclick="selectScene(this,'sales')">
+        <div class="scene-icon">💼</div>
+        <div class="scene-name">销售跟进</div>
+        <div class="scene-pain">客户记录混乱，报价邮件每封要单独写</div>
+      </div>
+      <div class="scene-card" onclick="selectScene(this,'hr')">
+        <div class="scene-icon">👔</div>
+        <div class="scene-name">HR / 行政</div>
+        <div class="scene-pain">简历筛选、合同整理，每月花大量时间</div>
+      </div>
+      <div class="scene-card" onclick="selectScene(this,'consult')">
+        <div class="scene-icon">📊</div>
+        <div class="scene-name">顾问 / 咨询</div>
+        <div class="scene-pain">客户报告要手动整理，效率低且容易出错</div>
+      </div>
+      <div class="scene-card" onclick="selectScene(this,'custom')">
+        <div class="scene-icon">🔧</div>
+        <div class="scene-name">自定义场景</div>
+        <div class="scene-pain">让客户自己描述，你来演示</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5分钟演示脚本 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">⏱️</span>第二步：5 分钟演示流程（点击展开每一步）</div>
+    <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:12px;color:var(--text-dim);">总时长：</span>
+      <span style="background:var(--primary);color:#fff;font-size:11px;padding:2px 10px;border-radius:4px;font-weight:600;">5 分钟</span>
+      <span style="font-size:12px;color:var(--text-dim);">核心原则：</span>
+      <span style="font-size:12px;color:var(--orange);">用客户的文件、说客户的话、算客户的账</span>
+    </div>
+
+    <div class="script-step" onclick="toggleStep(this)">
+      <div class="script-step-header">
+        <div class="script-step-title">
+          <span>🔵 开场破冰</span>
+          <span class="script-step-badge badge-question">问</span>
+        </div>
+        <span class="fold-arrow">▼</span>
+      </div>
+      <div class="script-step-body">
+        <div class="script-line me"><strong>你：</strong>"我看你们做[客户的行业]，平时最费时间、反复做的那些事是什么？比如每天都要做、没什么技术含量但又不得不做的。"</div>
+        <div class="script-line note">→ 让客户自己说出来，不要替他说。点头，记下来。</div>
+        <div class="script-line me"><strong>你：</strong>"这个任务你一个人做，还是团队都在做？大概每天花多少时间？"</div>
+        <div class="script-line note">→ 这是在收集信息，也是帮客户自己意识到痛点。</div>
+      </div>
+    </div>
+
+    <div class="script-step" onclick="toggleStep(this)">
+      <div class="script-step-header">
+        <div class="script-step-title">
+          <span>⚡ 现场演示（核心 3 分钟）</span>
+          <span class="script-step-badge badge-demo">演</span>
+        </div>
+        <span class="fold-arrow">▼</span>
+      </div>
+      <div class="script-step-body">
+        <div class="script-line me"><strong>你：</strong>"我帮你演示一下，这个工作 WorkBuddy 怎么帮你做。把你[相关的文件/账号]给我用一下？"（不要用演示账号，用客户的真实数据才震撼）</div>
+        <div class="script-line note">→ 关键：只演示一件事，不要贪多。就解决他刚才说的那个痛点。</div>
+        <div class="script-line me"><strong>你：</strong>（边操作边说）"看，这里它读取了你的[文件/聊天记录]，自动[生成了什么]，你只需要确认一下就发出去了。"</div>
+        <div class="script-line note">→ 每一步停顿一下，让客户看清楚。看到结果时停3秒。</div>
+        <div class="script-line me"><strong>你：</strong>"你原来做这件事要多久？这个我们刚用了多少时间？"</div>
+        <div class="script-line note">→ 一定要让客户自己说出来数字，你在旁边记。</div>
+      </div>
+    </div>
+
+    <div class="script-step" onclick="toggleStep(this)">
+      <div class="script-step-header">
+        <div class="script-step-title">
+          <span>💰 算账收单</span>
+          <span class="script-step-badge badge-close">算</span>
+        </div>
+        <span class="fold-arrow">▼</span>
+      </div>
+      <div class="script-step-body">
+        <div class="script-line me"><strong>你：</strong>"你原来每天花 [X] 小时在这件事上，一周就是 [X×5] 小时，一个月就是 [X×22] 小时。"</div>
+        <div class="script-line me"><strong>你：</strong>"你们同事做这件事，月薪大概 [X] 元？时薪大概 [X÷22÷8] 元？一个月在这件事上的人力成本是 [X×倍数] 元。"</div>
+        <div class="script-line me"><strong>你：</strong>"WorkBuddy [具体的月费]，一个月帮你们省 [X] 元的人力，ROI 超过 10 倍。不买才是浪费。"</div>
+        <div class="script-line note">→ 这个时候打开 ROI 计算器，现场给他算。</div>
+        <div class="script-line me"><strong>你：</strong>"现在帮你装好、配置好第一个场景，今天就能用。要不要现在就装？"</div>
+        <div class="script-line note">→ 临门一脚：不要问他"要不要考虑"，直接问"现在装吗"。</div>
+      </div>
+    </div>
+
+    <div class="script-step" onclick="toggleStep(this)">
+      <div class="script-step-header">
+        <div class="script-step-title">
+          <span>🔒 处理异议（常见问题应对）</span>
+          <span class="script-step-badge badge-question">应</span>
+        </div>
+        <span class="fold-arrow">▼</span>
+      </div>
+      <div class="script-step-body">
+        <div class="script-line" style="color:var(--orange);margin-bottom:8px;font-size:13px;">❝ 客户说："我再想想 / 回去商量一下" →</div>
+        <div class="script-line me"><strong>你：</strong>"完全理解。我帮你算的数，你可以回去再核实一下。我想问一下，主要是哪方面你觉得还不太确定？"</div>
+        <div class="script-line note">→ 追问真实顾虑，对症下药。</div>
+        <div class="script-line" style="color:var(--orange);margin-bottom:8px;font-size:13px;margin-top:12px;">❝ 客户说："能用 xxx 代替吗？" →</div>
+        <div class="script-line me"><strong>你：</strong>"[竞品名] 能读你电脑里的文件、操控你的桌面、自动完成任务吗？"（等对方反应）"它是你问它答，WorkBuddy 是帮你干活——本质不一样。"</div>
+        <div class="script-line note">→ 不贬低竞品，只说差异。</div>
+        <div class="script-line" style="color:var(--orange);margin-bottom:8px;font-size:13px;margin-top:12px;">❝ 客户说："价格有点贵" →</div>
+        <div class="script-line me"><strong>你：</strong>"你刚才说了，光这一个任务一个月就值 [X] 元的人力成本。[月费] 换 [X] 元的人力，不买才是贵。"</div>
+        <div class="script-line note">→ 把"贵"变成"值不值"的问题。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TAB 2: ROI 计算器 ==================== -->
+<div id="tab-roi" class="tab-content">
+  <div class="calc-grid">
+    <div>
+      <div class="card">
+        <div class="card-title"><span class="icon">⚙️</span>参数输入</div>
+
+        <div class="calc-input-group">
+          <label class="calc-label">员工月薪（元）</label>
+          <div class="calc-input-row">
+            <span class="calc-input-prefix">¥</span>
+            <input type="number" class="calc-input" id="salary" value="8000" oninput="calcROI()">
+          </div>
+        </div>
+
+        <div class="calc-input-group">
+          <label class="calc-label">每天节省时间（小时）</label>
+          <input type="range" class="calc-slider" id="hours" min="0.5" max="5" step="0.5" value="1" oninput="updateHours()">
+          <div class="calc-value">拖动滑块，或直接输入：<strong id="hoursVal">1</strong> 小时/天</div>
+        </div>
+
+        <div class="calc-input-group">
+          <label class="calc-label">每月工作天数</label>
+          <div class="calc-input-row">
+            <input type="number" class="calc-input" id="workdays" value="22" min="1" max="31" oninput="calcROI()">
+            <span class="calc-input-suffix">天</span>
+          </div>
+        </div>
+
+        <div class="calc-input-group">
+          <label class="calc-label">WorkBuddy 月费（元）</label>
+          <div class="calc-input-row">
+            <span class="calc-input-prefix">¥</span>
+            <input type="number" class="calc-input" id="fee" value="299" oninput="calcROI()">
+            <span class="calc-input-suffix">/月</span>
+          </div>
+        </div>
+
+        <div class="calc-input-group">
+          <label class="calc-label">使用人数</label>
+          <input type="range" class="calc-slider" id="users" min="1" max="20" step="1" value="3" oninput="updateUsers()">
+          <div class="calc-value"><strong id="usersVal">3</strong> 人（每增加1人，节省翻倍）</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="result-panel">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px;">每月净节省</div>
+        <div class="result-big" id="monthlySave">¥1,100</div>
+        <div class="result-label">节省人力成本 &gt; WorkBuddy 月费</div>
+        <div class="result-grid">
+          <div class="result-mini">
+            <div class="result-mini-val" id="annualSave">¥13,200</div>
+            <div class="result-mini-label">年省人力</div>
+          </div>
+          <div class="result-mini">
+            <div class="result-mini-val" id="roiMultiple">3.7x</div>
+            <div class="result-mini-label">ROI 倍数</div>
+          </div>
+          <div class="result-mini">
+            <div class="result-mini-val" id="monthlyHours">22h</div>
+            <div class="result-mini-label">月节省工时</div>
+          </div>
+          <div class="result-mini">
+            <div class="result-mini-val" id="payback">4天</div>
+            <div class="result-mini-label">多久回本</div>
+          </div>
+        </div>
+        <div class="roi-bar">
+          <div class="roi-bar-label">
+            <span>ROI 评级</span>
+            <span id="roiLabel">强烈推荐购买</span>
+          </div>
+          <div class="roi-bar-track">
+            <div class="roi-bar-fill" id="roiBar" style="width:80%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:16px;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:10px;">📊 成本明细</div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid var(--border);">
+          <span style="color:var(--text-dim);">月人力成本（节省部分）</span>
+          <span id="detailHumanCost">¥1,100</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid var(--border);">
+          <span style="color:var(--text-dim);">WorkBuddy 月费</span>
+          <span id="detailFee">-¥299</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;color:var(--green);font-weight:600;">
+          <span>净节省</span>
+          <span id="detailNet">¥801</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 话术卡 -->
+  <div class="card" style="margin-top:20px;">
+    <div class="card-title"><span class="icon">💬</span>直接套用的话术（点击复制）</div>
+    <div style="background:var(--bg);border-radius:10px;padding:16px;margin-bottom:10px;">
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">客户月薪 ¥<span id="copySalary">8000</span>，每天省 <span id="copyHours">1</span> 小时</div>
+      <div style="font-size:14px;line-height:1.8;color:var(--text);" id="pitchText">
+        "你们这位同事月薪 ¥8,000，折算时薪大概 45 元。<br>
+        每天省 1 小时，一个月就是 22 小时，相当于省了 ¥990 的人力。<br>
+        WorkBuddy ¥299/月，净赚 ¥691。不买才是浪费。"
+      </div>
+    </div>
+    <button onclick="copyPitch()" style="background:var(--primary);color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:13px;">📋 复制话术</button>
+  </div>
+</div>
+
+<!-- ==================== TAB 3: 实战技巧 ==================== -->
+<div id="tab-tips" class="tab-content">
+  <div class="card">
+    <div class="card-title"><span class="icon">⚡</span>让演示更有说服力的 8 个技巧</div>
+    <div class="tip-grid">
+      <div class="tip-item">
+        <div class="tip-icon">🎯</div>
+        <div class="tip-text">
+          <strong>只演示一个场景</strong>
+          贪多嚼不烂。选定一个客户最痛的点，演示清楚、做到极致，比讲十个功能强十倍。
+        </div>
+      </div>
+      <div class="tip-item">
+        <div class="tip-icon">📁</div>
+        <div class="tip-text">
+          <strong>用客户的文件</strong>
+          用演示账号的演示数据，和用客户自己的文件、他的聊天记录——说服力天壤之别。
+        </div>
+      </div>
+      <div class="tip-item">
+        <div class="tip-icon">⏸️</div>
+        <div class="tip-text">
+          <strong>看到结果时停 3 秒</strong>
+          不要急着说下一句。让画面定格，让客户自己感受震撼，比你吹嘘一百句更有效。
+        </div>
+      </div>
+      <div class="tip-item">
+        <div class="tip-icon">🧮</div>
+        <div class="tip-text">
+          <strong>让客户自己报数字</strong>
+          不要你说"你每天花2小时"——问他"你原来做这件事要多久？"数字从他嘴里说出来，分量不一样。
+        </div>
+      </div>
+      <div class="tip-item">
+        <div class="tip-icon">🔧</div>
+        <div class="tip-text">
+          <strong>装好再走</strong>
+          谈完当场帮他装好、配置好第一个 Skill。不给他"回去懒得装"的借口。
+        </div>
+      </div>
+      <div class="tip-item">
+        <div class="tip-icon">🆓</div>
+        <div class="tip-text">
+          <strong>给零风险入口</strong>
+          如果客户犹豫，说"我帮你申请 7 天免费试用，先用再决定"，降低决策门槛。
+        </div>
+      </div>
+      <div class="tip-item">
+        <div class="tip-icon">🎁</div>
+        <div class="tip-text">
+          <strong>现场装机是礼物</strong>
+          把帮他安装配置当作你提供的服务，不是求他买，是送他一份已经生效的价值。
+        </div>
+      </div>
+      <div class="tip-item">
+        <div class="tip-icon">❌</div>
+        <div class="tip-text">
+          <strong>永远不问"要不要买"</strong>
+          问"现在装吗"，而不是"你觉得要不要买"。把选择题变成肯定句。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">⚔️</span>竞品对比话术</div>
+    <table class="comp-table">
+      <tr>
+        <th>对比维度</th>
+        <th>竞品（ChatGPT/Kimi等）</th>
+        <th class="comp-you">WorkBuddy</th>
+      </tr>
+      <tr>
+        <td>交互方式</td>
+        <td class="comp-lose">你问它答，粘贴复制</td>
+        <td class="comp-win">🎯 自动操控电脑完成任务</td>
+      </tr>
+      <tr>
+        <td>数据来源</td>
+        <td class="comp-lose">只处理对话内容</td>
+        <td class="comp-win">🎯 读取本地文件、微信、浏览器</td>
+      </tr>
+      <tr>
+        <td>执行能力</td>
+        <td class="comp-lose">只能生成文字</td>
+        <td class="comp-win">🎯 自动发微信、写文件、发邮件</td>
+      </tr>
+      <tr>
+        <td>使用门槛</td>
+        <td class="comp-lose">需要学习提示词技巧</td>
+        <td class="comp-win">🎯 说话就能用，Skill 傻瓜化</td>
+      </tr>
+      <tr>
+        <td>企业属性</td>
+        <td class="comp-lose">个人工具，数据外传风险</td>
+        <td class="comp-win">🎯 腾讯云企业级安全，本地数据</td>
+      </tr>
+    </table>
+    <div style="margin-top:12px;font-size:13px;color:var(--text-dim);line-height:1.7;">
+      <strong style="color:var(--text);">核心差异一句话：</strong><br>
+      "ChatGPT 是你问它答，WorkBuddy 是它帮你干活——一个是聊天机器人，一个是数字员工。"
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">📦</span>可打包的套餐产品（提升客单价）</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;">
+      <div style="background:var(--bg);border-radius:10px;padding:14px;border:1px solid var(--border);">
+        <div style="font-size:14px;font-weight:600;margin-bottom:4px;">✍️ 自媒体运营套装</div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">内容生成 + 热点爬取 + 多平台发布 Skill</div>
+        <div style="font-size:12px;color:var(--primary);margin-top:6px;font-weight:600;">月订阅制</div>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:14px;border:1px solid var(--border);">
+        <div style="font-size:14px;font-weight:600;margin-bottom:4px;">🛒 电商客服套装</div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">自动回复 + 商品描述 + 订单处理 Skill</div>
+        <div style="font-size:12px;color:var(--primary);margin-top:6px;font-weight:600;">按店铺数定价</div>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:14px;border:1px solid var(--border);">
+        <div style="font-size:14px;font-weight:600;margin-bottom:4px;">💼 销售助理套装</div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">微信聊天摘要 + 跟进提醒 + 邮件起草 Skill</div>
+        <div style="font-size:12px;color:var(--primary);margin-top:6px;font-weight:600;">按人头月费</div>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:14px;border:1px solid var(--border);">
+        <div style="font-size:14px;font-weight:600;margin-bottom:4px;">📄 文档处理套装</div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">PDF分析 + 报告生成 + 合同整理 Skill</div>
+        <div style="font-size:12px;color:var(--primary);margin-top:6px;font-weight:600;">按使用量计费</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;font-size:12px;color:var(--text-dim);">
+      💡 <strong style="color:var(--text);">打包思路：</strong>不要单独卖 WorkBuddy，把它和针对他们场景的 Skill 组合成"行业解决方案包"。客户买的是"解决一个问题"，而不是"一个软件工具"。
+    </div>
+  </div>
+
+  <div class="cta-section">
+    <div class="cta-title">把这些变成你的武器</div>
+    <div class="cta-desc">打印这份脚本，带到客户现场<br>用 ROI 计算器当场算账，让客户自己看到值不值</div>
+    <div class="cta-btn" onclick="window.print()">🖨️ 打印此页（Ctrl+P）</div>
+  </div>
+</div>
+
+</div>
+
+<footer>
+  WorkBuddy 代理商销售工具包 · 内部使用 · 2026
+</footer>
+
+<script>
+// Tab switching
+function showTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector(`[onclick="showTab('${name}')"]`).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// Script steps
+function toggleStep(el) {
+  el.classList.toggle('open');
+}
+
+// Scene selection
+function selectScene(el, type) {
+  document.querySelectorAll('.scene-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  const names = { media:'自媒体运营', ecom:'电商客服', sales:'销售跟进', hr:'HR/行政', consult:'顾问/咨询', custom:'自定义' };
+  const prompt = `好，你做${names[type]}，我们演示你最费时间的那件事。你说说平时什么最烦？`;
+  // In real use, show this prompt to the agent
+}
+
+// ROI Calculator
+function updateHours() {
+  const v = document.getElementById('hours').value;
+  document.getElementById('hoursVal').textContent = v;
+  calcROI();
+}
+function updateUsers() {
+  const v = document.getElementById('users').value;
+  document.getElementById('usersVal').textContent = v;
+  calcROI();
+}
+function calcROI() {
+  const salary = parseFloat(document.getElementById('salary').value) || 0;
+  const hours = parseFloat(document.getElementById('hours').value) || 0;
+  const days = parseFloat(document.getElementById('workdays').value) || 22;
+  const fee = parseFloat(document.getElementById('fee').value) || 0;
+  const users = parseInt(document.getElementById('users').value) || 1;
+
+  const hourlyRate = salary / 22 / 8;
+  const monthlySave = hourlyRate * hours * days * users;
+  const annualSave = monthlySave * 12;
+  const monthlyHours = hours * days;
+  const roiMultiple = fee > 0 ? (monthlySave / fee).toFixed(1) : 0;
+  const netSave = monthlySave - fee;
+  const paybackDays = fee > 0 && hourlyRate * hours * users > 0
+    ? Math.ceil(fee / (hourlyRate * hours * users)) : 0;
+
+  document.getElementById('monthlySave').textContent = '¥' + Math.round(monthlySave).toLocaleString();
+  document.getElementById('annualSave').textContent = '¥' + Math.round(annualSave).toLocaleString();
+  document.getElementById('roiMultiple').textContent = roiMultiple + 'x';
+  document.getElementById('monthlyHours').textContent = monthlyHours + 'h';
+  document.getElementById('payback').textContent = paybackDays + '天';
+  document.getElementById('detailHumanCost').textContent = '¥' + Math.round(monthlySave).toLocaleString();
+  document.getElementById('detailFee').textContent = '-¥' + Math.round(fee).toLocaleString();
+  document.getElementById('detailNet').textContent = '¥' + Math.round(netSave).toLocaleString();
+
+  // ROI bar (0-10x = 0%-100%)
+  const barPct = Math.min(100, (roiMultiple / 10) * 100);
+  document.getElementById('roiBar').style.width = barPct + '%';
+  const labels = ['不建议购买', '考虑中', '值得考虑', '推荐购买', '强烈推荐'];
+  const idx = Math.min(4, Math.floor(barPct / 25));
+  document.getElementById('roiLabel').textContent = labels[idx];
+
+  // Update pitch text
+  document.getElementById('copySalary').textContent = salary.toLocaleString();
+  document.getElementById('copyHours').textContent = hours;
+  document.getElementById('pitchText').innerHTML =
+    `"你们这位同事月薪 ¥${salary.toLocaleString()}，折算时薪大概 ¥${Math.round(hourlyRate)}。<br>` +
+    `每天省 ${hours} 小时，一个月就是 ${monthlyHours} 小时，相当于省了 ¥${Math.round(monthlySave)} 的人力。<br>` +
+    `WorkBuddy ¥${Math.round(fee)}/月，净赚 ¥${Math.round(netSave)}。不买才是浪费。"`;
+}
+
+function copyPitch() {
+  const text = document.getElementById('pitchText').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('[onclick="copyPitch()"]');
+    btn.textContent = '✅ 已复制！';
+    setTimeout(() => btn.textContent = '📋 复制话术', 2000);
+  });
+}
+
+// Init
+calcROI();
+</script>
+</body>
+</html>
